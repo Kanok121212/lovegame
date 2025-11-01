@@ -29,8 +29,9 @@
   h1,h2,p{margin:0 0 10px}
   h1{color:#fff; font-size:28px; text-shadow:0 2px 8px rgba(0,0,0,.25)}
   h2{color:#fff; font-size:22px}
-  .muted{color:rgba(255,255,255,.85)}
+  .muted{color:rgba(255,255,255,.9)}
   .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+  .col{display:flex; flex-direction:column; gap:8px}
   .space{height:10px}
   .btn{
     background:#fff; color:#c2185b; border:none; padding:12px 18px; border-radius:16px;
@@ -57,11 +58,13 @@
   .meter>i{display:block; height:100%; background:#fff}
   .hint{font-size:14px; color:#fff; opacity:.9}
   .hud{position:absolute; top:10px; left:10px; right:10px; display:flex; justify-content:space-between; color:#fff; font-weight:700}
-  .abs{position:absolute}
   .item{position:absolute; font-size:28px; user-select:none; border:none; background:none; cursor:pointer; filter: drop-shadow(0 6px 8px rgba(0,0,0,.25))}
-  .quiz{max-width:640px; margin:0 auto}
-  .qbox{background:rgba(255,255,255,.1); border:1px solid var(--border); border-radius:16px; padding:12px; margin:10px 0}
-  .result{font-size:18px; color:#fff}
+  .qbox{background:rgba(255,255,255,.1); border:1px solid var(--border); border-radius:16px; padding:12px; margin:8px 0}
+  .qbox textarea, .qbox input{
+    width:100%; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.5);
+    outline:none; background:rgba(255,255,255,.9); font-size:15px;
+  }
+  .result{font-size:16px; color:#fff; white-space:pre-wrap; text-align:left; background:rgba(255,255,255,.1); padding:12px; border-radius:12px; border:1px solid var(--border)}
   .footer{display:flex; justify-content:space-between; align-items:center; color:#fff; margin-top:8px; font-size:14px}
   @media (max-width:520px){ .panel{min-height:460px} .btn{padding:12px 14px} .beat{font-size:36px} }
 </style>
@@ -70,10 +73,11 @@
   <div class="app" id="app">
     <div class="header">
       <div>
+        <h1>Love Game Plus</h1>
         <div class="muted">เกม 5 ด่าน • หัวใจลอย • ไอเท็มพิเศษ 🐷🍋 • เพลงประกอบ</div>
       </div>
       <div class="topbar">
-        <button class="btn ghost" id="musicBtn">🔊 เพลง: ปิด</button>
+        <button class="btn ghost" id="musicBtn">🔈 เพลง: ปิด</button>
         <span class="badge" id="scoreBadge">คะแนน: 0</span>
       </div>
     </div>
@@ -96,6 +100,7 @@
     </div>
   </div>
 
+  <!-- Audio (ต้องกดปุ่มก่อนเบราว์เซอร์ถึงจะเล่นได้) -->
   <audio id="bgm" loop preload="auto">
     <source src="https://cdn.pixabay.com/download/audio/2022/03/30/audio_4b36e23f0f.mp3?filename=cute-love-11276.mp3" type="audio/mpeg">
   </audio>
@@ -108,6 +113,8 @@
 
 <script>
 (()=>{
+
+/* ---------- State ---------- */
 let level = 1;
 let score = 0;
 let timer = 0, timerId = null;
@@ -117,43 +124,268 @@ const lvNow = document.getElementById('lvNow');
 const tbox = document.getElementById('timer');
 const tval = document.getElementById('tval');
 const bg = document.getElementById('bg');
+
 const bgm = document.getElementById('bgm');
 const sPop = document.getElementById('pop');
 const sWin = document.getElementById('win');
 let musicOn = false;
+
+/* ---------- Utils ---------- */
 function setScore(v){ score = Math.max(0, v); scoreBadge.textContent = "คะแนน: " + score; }
 function setLevel(v){ level = Math.max(1, Math.min(5, v)); lvNow.textContent = level; stopTimer(); render(); }
-function spawnFloat(emoji){ const n=document.createElement('div'); n.className='float'; n.textContent=emoji||(Math.random()>0.5?'💖':'💞'); n.style.left=(Math.random()*95)+'%'; n.style.animationDuration=(4+Math.random()*3)+'s'; bg.appendChild(n); setTimeout(()=>n.remove(),7000); }
+function spawnFloat(emoji){
+  const n = document.createElement('div');
+  n.className = 'float';
+  n.textContent = emoji || (Math.random()>0.5?'💖':'💞');
+  n.style.left = (Math.random()*95)+'%';
+  n.style.animationDuration = (4+Math.random()*3)+'s';
+  bg.appendChild(n);
+  setTimeout(()=> n.remove(), 7000);
+}
 function burst(n=12){ for(let i=0;i<n;i++) setTimeout(spawnFloat, i*80); }
-function play(el){ el.currentTime=0; el.volume=.5; el.play().catch(()=>{}); }
-function startTimer(sec,onEnd){ timer=sec; tval.textContent=timer; tbox.style.display='block'; stopTimer(); timerId=setInterval(()=>{ timer--; tval.textContent=timer; if(timer<=0){ stopTimer(); onEnd&&onEnd(); } },1000); }
+function play(el){ el.currentTime=0; el.volume = .5; el.play().catch(()=>{}); }
+function startTimer(sec, onEnd){
+  timer = sec; tval.textContent = timer; tbox.style.display='block';
+  stopTimer();
+  timerId = setInterval(()=>{
+    timer--; tval.textContent = timer;
+    if(timer<=0){ stopTimer(); onEnd && onEnd(); }
+  }, 1000);
+}
 function stopTimer(){ if(timerId){ clearInterval(timerId); timerId=null; } tbox.style.display='none'; }
 
-document.getElementById('panel').addEventListener('pointerdown',()=>spawnFloat());
+/* Background hearts on click/touch */
+document.getElementById('panel').addEventListener('pointerdown', ()=> spawnFloat());
 
-document.getElementById('musicBtn').onclick=()=>{ musicOn=!musicOn; document.getElementById('musicBtn').textContent=musicOn?'🔊 เพลง: เปิด':'🔈 เพลง: ปิด'; if(musicOn){ bgm.volume=.22; bgm.play().catch(()=>{}); } else { bgm.pause(); } };
-document.getElementById('prevBtn').onclick=()=>setLevel(level-1);
-document.getElementById('nextBtn').onclick=()=>setLevel(level+1);
+/* Header buttons */
+document.getElementById('musicBtn').onclick = ()=>{
+  musicOn = !musicOn;
+  document.getElementById('musicBtn').textContent = musicOn ? '🔊 เพลง: เปิด' : '🔈 เพลง: ปิด';
+  if(musicOn){ bgm.volume=.22; bgm.play().catch(()=>{}); } else { bgm.pause(); }
+};
+document.getElementById('prevBtn').onclick = ()=> setLevel(level-1);
+document.getElementById('nextBtn').onclick = ()=> setLevel(level+1);
 
+/* ---------- Level renderers ---------- */
+
+// Level 1 — ปุ่มสารภาพรัก
 function view1(){
-  screen.innerHTML=`<div class="center"><div class="beat">💖</div><h2>รักเค้ามั้ย ?</h2><div class="choices"><button class="btn">รัก</button><button class="btn">รักมาก</button><button class="btn">รักมากกกกก</button></div></div>`;
-  [...screen.querySelectorAll('.btn')].forEach((b,i)=>{ b.onclick=()=>{ play(sPop); burst(10); setScore(score+1+i); setLevel(2); }; });
+  screen.innerHTML = `
+    <div class="center">
+      <div class="beat" aria-hidden="true">💖</div>
+      <h2>รักเค้ามั้ย ?</h2>
+      <div class="choices">
+        <button class="btn">รัก</button>
+        <button class="btn">รักมาก</button>
+        <button class="btn">รักมากกกกก</button>
+      </div>
+      <div class="space"></div>
+      <div class="muted">แตะปุ่มไหนก็ได้แล้วไปต่อ ►</div>
+    </div>`;
+  [...screen.querySelectorAll('.btn')].forEach((b,i)=>{
+    b.onclick=()=>{
+      play(sPop); burst(12); setScore(score + 1 + i); setLevel(2);
+    };
+  });
 }
 
+// Level 2 — จับหัวใจให้ทัน (ช้าลง + เวลา 30s) พร้อมไอเท็ม 🐷🍋
 function view2(){
-  screen.innerHTML=`<div class="center"><h2>จับหัวใจให้ทัน 💓</h2><p class="muted">ภายใน <b>30 วินาที</b> เก็บคะแนน ≥ <b>10</b></p><div class="meter"><i id="prog" style="width:0%"></i></div></div>`;
-  let local=0; const prog=document.getElementById('prog'); let running=true;
-  function spawn(){ if(!running) return; const el=document.createElement('button'); el.className='item'; const r=Math.random(); if(r<0.12){el.textContent='🐷'; el.dataset.point='3';} else if(r<0.30){el.textContent='🍋'; el.dataset.point='2';} else {el.textContent='💗'; el.dataset.point='1';} const panel=document.getElementById('panel'); el.style.left=(8+Math.random()*84)+'%'; el.style.top='-8%'; panel.appendChild(el); const speed=0.9+Math.random()*0.9; let y=-8; const id=setInterval(()=>{y+=speed; el.style.top=y+'%'; if(y>110){clearInterval(id); el.remove();}},40); el.onclick=()=>{const bonus=Number(el.dataset.point||1); play(sPop); local+=bonus; setScore(score+bonus); prog.style.width=Math.min(100,(local/10)*100)+'%'; el.remove(); clearInterval(id); spawnFloat(el.textContent);}; setTimeout(spawn,400+Math.random()*400);} spawn(); startTimer(30,()=>{running=false; if(local>=10){play(sWin); alert('ผ่านด่าน ❤️'); setLevel(3);} else {alert('ลองใหม่อีกครั้ง~'); setLevel(2);} });
+  screen.innerHTML = `
+    <div class="center" style="height:100%">
+      <h2>จับหัวใจให้ทัน 💓</h2>
+      <p class="muted">ภายใน <b>30 วินาที</b> เก็บคะแนนให้ได้อย่างน้อย <b>10</b><br>
+      🐷 = +3, 🍋 = +2, 💗 = +1</p>
+      <div class="space"></div>
+      <div class="meter" aria-hidden="true"><i id="prog" style="width:0%"></i></div>
+    </div>`;
+  let local = 0;
+  const prog = document.getElementById('prog');
+
+  let running = true;
+  function spawn(){
+    if(!running) return;
+    const el = document.createElement('button');
+    el.className = 'item';
+    const r = Math.random();
+    if(r < 0.12){ el.textContent = '🐷'; el.dataset.point='3'; }
+    else if(r < 0.30){ el.textContent = '🍋'; el.dataset.point='2'; }
+    else { el.textContent = '💗'; el.dataset.point='1'; }
+    const panel = document.getElementById('panel');
+    el.style.left = (8 + Math.random()*84)+'%';
+    el.style.top = '-8%';
+    panel.appendChild(el);
+
+    const speed = 0.9 + Math.random()*0.9; // ช้าลง
+    let y = -8;
+    const id = setInterval(()=>{
+      y += speed;
+      el.style.top = y+'%';
+      if(y>110){ clearInterval(id); el.remove(); }
+    }, 40);
+
+    el.onclick = ()=>{
+      const bonus = Number(el.dataset.point||1);
+      play(sPop);
+      local += bonus; setScore(score + bonus);
+      prog.style.width = Math.min(100, (local/10)*100)+'%';
+      el.remove(); clearInterval(id);
+      spawnFloat(el.textContent);
+    };
+
+    setTimeout(spawn, 400 + Math.random()*400); // ห่างขึ้น
+  }
+
+  spawn();
+  startTimer(30, ()=>{
+    running=false;
+    if(local>=10){ play(sWin); alert('เก่งมาก! ผ่านด่าน ❤️'); setLevel(3); }
+    else { alert('ยังไม่ถึงเป้า ลองใหม่นะ!'); setLevel(2); }
+  });
 }
 
-function view3(){screen.innerHTML=`<div class="center"><h2>จับปุ่มนี้ให้ได้ถ้ารักจริง! 😆</h2><div class="choices"><button class="btn" id="yes">รักที่สุด!</button><button class="btn ghost" id="no">ไม่รัก 🙈</button></div></div>`; const no=document.getElementById('no'); const yes=document.getElementById('yes'); function teleport(){const p=document.getElementById('panel'); const w=p.clientWidth,h=p.clientHeight; const x=40+Math.random()*(w-160); const y=120+Math.random()*(h-220); no.style.position='absolute'; no.style.left=x+'px'; no.style.top=y+'px'; play(sPop);} no.onmouseenter=teleport; no.ontouchstart=e=>{e.preventDefault(); teleport();}; no.onclick=()=>{setScore(score+5); alert('จับได้! +5 คะแนน 🏆'); setLevel(4);}; yes.onclick=()=>{play(sWin); burst(16); setScore(score+10); setLevel(4);}; teleport();}
+// Level 3 — ปุ่ม “ไม่รัก” หนี
+function view3(){
+  screen.innerHTML = `
+    <div class="center">
+      <h2>จับปุ่มนี้ให้ได้ถ้ารักจริง! 😆</h2>
+      <div class="space"></div>
+      <div class="choices">
+        <button class="btn" id="yes">รักที่สุด!</button>
+        <button class="btn ghost" id="no" style="position:relative">ไม่รัก 🙈</button>
+      </div>
+      <div class="space"></div>
+      <p class="muted">ขยับเมาส์หรือนิ้วไล่จับ “ไม่รัก” ดูสิ</p>
+    </div>`;
+  const no = document.getElementById('no');
+  const yes = document.getElementById('yes');
 
-function view4(){const qs=[{q:'ถ้าฉันงอน เธอจะทำยังไง?',a:['ปล่อยไว้เดี๋ยวก็หาย','ขอโทษ+กอดแน่นๆ','แกล้งให้ยิ้มก่อน'],ok:1},{q:'เดตในฝันคือแบบไหน?',a:['ดูซีรีส์','ทำอาหารด้วยกัน','ปั่นจักรยานริมทะเล'],ok:2},{q:'ถ้าฝนตก เธอจะ…',a:['ยืมร่มคนอื่น','วิ่งตากฝนไปหาเค้า','รอฝนหยุดก่อน'],ok:1}];screen.innerHTML=`<div class="center"><h2>แบบทดสอบความรัก 💞</h2><div class="quiz" id="quiz"></div><button class="btn" id="submit">ตรวจคำตอบ</button><div class="result" id="res"></div></div>`;const box=document.getElementById('quiz');qs.forEach((it,idx)=>{const div=document.createElement('div');div.className='qbox';let html=`<b>ข้อ ${idx+1}:</b> ${it.q}`;it.a.forEach((opt,i)=>{html+=`<label class="row" style="gap:8px"><input type="radio" name="q${idx}" value="${i}"> <span class="muted">${opt}</span></label>`});div.innerHTML=html;box.appendChild(div);});document.getElementById('submit').onclick=()=>{let correct=0;qs.forEach((it,idx)=>{const v=(box.querySelector('input[name="q'+idx+'"]:checked')||{}).value;if(Number(v)===it.ok) correct++;});if(correct>=2){play(sWin);setScore(score+correct*2);document.getElementById('res').textContent='ถูก '+correct+'/3 ข้อ ✅';setTimeout(()=>setLevel(5),800);}else{document.getElementById('res').textContent='ยังไม่ผ่าน ลองอีกที 💗';}};}
+  function teleport(){
+    const p = document.getElementById('panel');
+    const w = p.clientWidth, h = p.clientHeight;
+    const x = 40 + Math.random()*(w-160);
+    const y = 120 + Math.random()*(h-220);
+    no.style.position='absolute';
+    no.style.left = x+'px';
+    no.style.top = y+'px';
+    play(sPop);
+  }
+  no.onmouseenter = teleport;
+  no.ontouchstart = (e)=>{ e.preventDefault(); teleport(); };
+  no.onclick = ()=>{ setScore(score+5); alert('จับได้! +5 คะแนน 🏆'); setLevel(4); };
+  yes.onclick = ()=>{ play(sWin); burst(16); setScore(score+10); setLevel(4); };
+  teleport();
+}
 
-function view5(){screen.innerHTML=`<div class="center"><div class="beat">💖</div><h2>ภารกิจรักสำเร็จแล้ว 🎉</h2><p class="muted">คะแนนทั้งหมด: <b>${score}</b></p><p class="muted">🐷 + 🍋 = รักเปรี้ยวหวานพอดี~</p><div class="row"><button class="btn" id="again">เล่นอีก</button></div></div>`;burst(24);document.getElementById('again').onclick=()=>{play(sWin);setScore(0);setLevel(1);};}
+// Level 4 — แบบทดสอบความรัก (ตอบด้วยใจ) — ทั้ง 5 ข้อเป็นแบบพิมพ์คำตอบ
+function view4(){
+  screen.innerHTML = `
+    <div class="col" style="width:100%">
+      <h2>❤️ แบบทดสอบความรัก (ตอบด้วยใจ)</h2>
+      <div class="qbox">
+        <label>1️⃣ ถ้าฉันงอน เธอจะทำยังไง?</label>
+        <textarea rows="2" id="q1" placeholder="พิมพ์คำตอบของเธอที่นี่..."></textarea>
+      </div>
+      <div class="qbox">
+        <label>2️⃣ เดตในฝันคือแบบไหน? 📝</label>
+        <textarea rows="2" id="q2" placeholder="พิมพ์คำตอบของเธอที่นี่..."></textarea>
+      </div>
+      <div class="qbox">
+        <label>3️⃣ อยากทำอะไรด้วยกันมากที่สุด</label>
+        <textarea rows="2" id="q3" placeholder="พิมพ์คำตอบของเธอที่นี่..."></textarea>
+      </div>
+      <div class="qbox">
+        <label>4️⃣ ความทรงจำแรกเกี่ยวกับฉันคืออะไร 📝</label>
+        <textarea rows="2" id="q4" placeholder="พิมพ์คำตอบของเธอที่นี่..."></textarea>
+      </div>
+      <div class="qbox">
+        <label>5️⃣ วางแผนชีวิตอีก 5 ปีไว้ยังไง</label>
+        <textarea rows="2" id="q5" placeholder="พิมพ์คำตอบของเธอที่นี่..."></textarea>
+      </div>
 
-function render(){screen.innerHTML='';if(level===1)view1();else if(level===2)view2();else if(level===3)view3();else if(level===4)view4();else if(level===5)view5();}
-setScore(0);setLevel(1);
+      <div class="row">
+        <button class="btn" id="submit">ส่งคำตอบ</button>
+        <button class="btn ghost" id="copy" disabled>คัดลอกคำตอบ 💌</button>
+      </div>
+
+      <div class="space"></div>
+      <div class="result" id="res" style="display:none"></div>
+    </div>`;
+
+  const res = document.getElementById('res');
+  const btnSubmit = document.getElementById('submit');
+  const btnCopy = document.getElementById('copy');
+
+  btnSubmit.onclick = ()=>{
+    const a1 = document.getElementById('q1').value.trim();
+    const a2 = document.getElementById('q2').value.trim();
+    const a3 = document.getElementById('q3').value.trim();
+    const a4 = document.getElementById('q4').value.trim();
+    const a5 = document.getElementById('q5').value.trim();
+
+    const txt = [
+      "❤️ คำตอบของฉัน",
+      "1) ถ้าฉันงอน เธอจะทำยังไง? → " + (a1||"-"),
+      "2) เดตในฝันคือแบบไหน? → " + (a2||"-"),
+      "3) อยากทำอะไรด้วยกันมากที่สุด → " + (a3||"-"),
+      "4) ความทรงจำแรกเกี่ยวกับฉันคืออะไร → " + (a4||"-"),
+      "5) วางแผนชีวิตอีก 5 ปีไว้ยังไง → " + (a5||"-"),
+    ].join("\n");
+
+    res.textContent = txt;
+    res.style.display = 'block';
+    btnCopy.disabled = false;
+    play(sWin);
+  };
+
+  btnCopy.onclick = async ()=>{
+    const text = res.textContent || "";
+    try {
+      await navigator.clipboard.writeText(text);
+      alert("คัดลอกคำตอบทั้งหมดแล้ว 💌\nส่งให้ที่รักได้เลย!");
+    } catch(e){
+      // fallback
+      prompt("คัดลอกข้อความด้านล่างนี้ด้วยตัวเอง:", text);
+    }
+  };
+
+  // ปุ่ม “ข้ามด่าน” จะพาไปด่าน 5 เช่นเดิม
+}
+
+// Level 5 — ตอนจบ
+function view5(){
+  screen.innerHTML = `
+    <div class="center">
+      <div class="beat" aria-hidden="true">💖</div>
+      <h2>ภารกิจรักสำเร็จแล้ว 🎉</h2>
+      <p class="muted">คะแนนทั้งหมด: <b>${score}</b></p>
+      <p class="muted">🐷 + 🍋 = รักเปรี้ยวหวานพอดี~</p>
+      <div class="row">
+        <button class="btn" id="again">เล่นอีกรอบ</button>
+        <button class="btn ghost" id="share">แชร์ให้ที่รัก</button>
+      </div>
+    </div>`;
+  burst(24);
+  document.getElementById('again').onclick = ()=>{ play(sWin); setScore(0); setLevel(1); };
+  document.getElementById('share').onclick = ()=>{
+    const text = `ฉันผ่าน Love Game Plus แล้วนะ ได้ ${score} คะแนน 💖🐷🍋`;
+    if(navigator.share){ navigator.share({title:'Love Game Plus', text}); }
+    else { prompt('ก๊อปปี้ข้อความนี้ไปส่งให้แฟนเลย 💌', text); }
+  };
+}
+
+/* ---------- Router ---------- */
+function render(){
+  screen.innerHTML = '';
+  if(level===1) view1();
+  else if(level===2) view2();
+  else if(level===3) view3();
+  else if(level===4) view4();
+  else if(level===5) view5();
+}
+
+/* Init */
+setScore(0); setLevel(1); // render inside
 })();
 </script>
 </body>
